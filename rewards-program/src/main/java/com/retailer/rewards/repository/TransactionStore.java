@@ -18,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * In-memory stand-in for a real transactions data source (a database or a
@@ -56,9 +55,17 @@ public class TransactionStore {
             }
             this.customersById = Collections.unmodifiableMap(customerMap);
 
-            this.transactionsByCustomerId = Collections.unmodifiableMap(
-                    seedData.getTransactions().stream()
-                            .collect(Collectors.groupingBy(Transaction::getCustomerId)));
+            Map<String, List<Transaction>> transactionMap = new HashMap<>();
+            for (Transaction transaction : seedData.getTransactions()) {
+                String customerId = transaction.getCustomerId();
+                List<Transaction> customerTransactions = transactionMap.get(customerId);
+                if (customerTransactions == null) {
+                    customerTransactions = new ArrayList<>();
+                    transactionMap.put(customerId, customerTransactions);
+                }
+                customerTransactions.add(transaction);
+            }
+            this.transactionsByCustomerId = Collections.unmodifiableMap(transactionMap);
 
             log.info("Loaded {} customers and {} transactions from {}",
                     customersById.size(), seedData.getTransactions().size(), SEED_FILE);

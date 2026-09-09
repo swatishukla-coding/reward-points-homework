@@ -5,17 +5,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/**
- * Pure calculation logic for the rewards formula:
- *   - 2 points for every dollar spent over $100
- *   - 1 point for every dollar spent between $50 and $100
- *   - 0 points for the first $50
- *
- * e.g. a $120 purchase = (20 * 2) + (50 * 1) = 90 points.
- *
- * Kept as its own service (no dependency on transactions, customers, or the
- * web layer) so the formula can be unit tested in isolation.
- */
 @Service
 public class RewardsCalculationService {
 
@@ -28,17 +17,20 @@ public class RewardsCalculationService {
             return 0;
         }
 
-        BigDecimal points = BigDecimal.ZERO;
-
         if (amount.compareTo(UPPER_THRESHOLD) > 0) {
-            BigDecimal amountOverHundred = amount.subtract(UPPER_THRESHOLD);
-            points = points.add(amountOverHundred.multiply(TWO));
-            points = points.add(UPPER_THRESHOLD.subtract(LOWER_THRESHOLD)); // full $50-$100 tier = 50 pts
-        } else if (amount.compareTo(LOWER_THRESHOLD) > 0) {
-            points = points.add(amount.subtract(LOWER_THRESHOLD));
+            BigDecimal points = amount.subtract(UPPER_THRESHOLD).multiply(TWO)
+                    .add(UPPER_THRESHOLD.subtract(LOWER_THRESHOLD));
+            return wholePoints(points);
         }
 
-        // Points are whole numbers; a purchase like $100.50 earns 1 point, not 1.5.
+        if (amount.compareTo(LOWER_THRESHOLD) > 0) {
+            return wholePoints(amount.subtract(LOWER_THRESHOLD));
+        }
+
+        return 0;
+    }
+
+    private int wholePoints(BigDecimal points) {
         return points.setScale(0, RoundingMode.DOWN).intValue();
     }
 }

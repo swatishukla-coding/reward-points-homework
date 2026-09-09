@@ -23,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 @Service
 public class RewardsService {
@@ -43,43 +42,21 @@ public class RewardsService {
         this.calculationService = calculationService;
     }
 
-    /**
-     * Calculates reward points earned by a customer, broken down by month,
-     * for the {@code months} immediately preceding {@code asOfDate}.
-     */
     public CustomerRewardsResponse getRewardsForCustomer(String customerId, int months, LocalDate asOfDate) {
         Customer customer = transactionStore.findCustomerById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId));
 
         LocalDate periodStart = asOfDate.minusMonths(months).plusDays(1);
-        List<Transaction> transactions = fetchTransactions(customerId);
-
-        List<Transaction> inWindow = transactions.stream()
-                .filter(t -> !t.getTransactionDate().isBefore(periodStart) && !t.getTransactionDate().isAfter(asOfDate))
-                .sorted(Comparator.comparing(Transaction::getTransactionDate))
-                .collect(Collectors.toList());
-
-        Map<YearMonth, List<Transaction>> byMonth = inWindow.stream()
-                .collect(Collectors.groupingBy(
-                        t -> YearMonth.from(t.getTransactionDate()),
-                        TreeMap::new,
-                        Collectors.toList()));
+        Map<YearMonth, List<Transaction>> transactionsByMonth = groupTransactions(
+                fetchTransactions(customerId), periodStart, asOfDate);
 
         List<MonthlyRewardDto> monthlyBreakdown = new ArrayList<>();
         int totalPoints = 0;
 
-        for (Map.Entry<YearMonth, List<Transaction>> entry : byMonth.entrySet()) {
-            List<TransactionDetailDto> details = new ArrayList<>();
-            int monthPoints = 0;
-
-            for (Transaction t : entry.getValue()) {
-                int points = calculationService.calculatePoints(t.getAmount());
-                monthPoints += points;
-                details.add(new TransactionDetailDto(t.getTransactionId(), t.getTransactionDate(), t.getAmount(), points));
-            }
-
-            monthlyBreakdown.add(new MonthlyRewardDto(entry.getKey().toString(), monthPoints, details));
-            totalPoints += monthPoints;
+        for (YearMonth month : transactionsByMonth.keySet()) {
+            MonthlyRewardDto monthlyReward = createMonthlyReward(month, transactionsByMonth.get(month));
+            monthlyBreakdown.add(monthlyReward);
+            totalPoints += monthlyReward.getPointsEarned();
         }
 
         return new CustomerRewardsResponse(
@@ -87,13 +64,59 @@ public class RewardsService {
     }
 
     public List<CustomerRewardsResponse> getRewardsForAllCustomers(int months, LocalDate asOfDate) {
-        return transactionStore.findAllCustomers().stream()
-                .map(c -> getRewardsForCustomer(c.getCustomerId(), months, asOfDate))
-                .collect(Collectors.toList());
+        List<CustomerRewardsResponse> rewards = new ArrayList<>();
+        for (Customer customer : transactionStore.findAllCustomers()) {
+            rewards.add(getRewardsForCustomer(customer.getCustomerId(), months, asOfDate));
+        }
+        return rewards;
+    }
+
+    private Map<YearMonth, List<Transaction>> groupTransactions(List<Transaction> transactions,
+                                                                  LocalDate start,
+                                                                  LocalDate end) {
+        List<Transaction> filteredTransactions = new ArrayList<>();
+        for (Transaction transaction : transactions) {
+            LocalDate date = transaction.getTransactionDate();
+            if (!date.isBefore(start) && !date.isAfter(end)) {
+                filteredTransactions.add(transaction);
+            }
+        }
+
+        filteredTransactions.sort(Comparator.comparing(Transaction::getTransactionDate));
+
+        Map<YearMonth, List<Transaction>> transactionsByMonth = new TreeMap<>();
+        for (Transaction transaction : filteredTransactions) {
+            YearMonth month = YearMonth.from(transaction.getTransactionDate());
+            List<Transaction> monthTransactions = transactionsByMonth.get(month);
+            if (monthTransactions == null) {
+                monthTransactions = new ArrayList<>();
+                transactionsByMonth.put(month, monthTransactions);
+            }
+            monthTransactions.add(transaction);
+        }
+        return transactionsByMonth;
+    }
+
+    private MonthlyRewardDto createMonthlyReward(YearMonth month, List<Transaction> transactions) {
+        List<TransactionDetailDto> details = new ArrayList<>();
+        int points = 0;
+
+        for (Transaction transaction : transactions) {
+            int transactionPoints = calculationService.calculatePoints(transaction.getAmount());
+            points += transactionPoints;
+            details.add(new TransactionDetailDto(
+                    transaction.getTransactionId(),
+                    transaction.getTransactionDate(),
+                    transaction.getAmount(),
+                    transactionPoints));
+        }
+
+        return new MonthlyRewardDto(month.toString(), points, details);
     }
 
     private List<Transaction> fetchTransactions(String customerId) {
-        CompletableFuture<List<Transaction>> future = transactionDataService.fetchTransactionsForCustomer(customerId);
+        CompletableFuture<List<Transaction>> future =
+            transactionDataService.fetchTransactionsForCustomer(customerId);
         try {
             return future.get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {

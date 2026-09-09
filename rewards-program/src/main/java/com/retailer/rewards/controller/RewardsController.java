@@ -42,8 +42,8 @@ public class RewardsController {
             @RequestParam(defaultValue = "3") @Min(1) @Max(24) int months,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
 
-        LocalDate effectiveDate = asOfDate != null ? asOfDate : LocalDate.now();
-        return ResponseEntity.ok(rewardsService.getRewardsForCustomer(customerId, months, effectiveDate));
+        return ResponseEntity.ok(rewardsService.getRewardsForCustomer(
+            customerId, months, getEffectiveDate(asOfDate)));
     }
 
     /**
@@ -54,7 +54,11 @@ public class RewardsController {
             @RequestParam(defaultValue = "3") @Min(1) @Max(24) int months,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
 
-        LocalDate effectiveDate = asOfDate != null ? asOfDate : LocalDate.now();
-        return ResponseEntity.ok(rewardsService.getRewardsForAllCustomers(months, effectiveDate));
+        return ResponseEntity.ok(rewardsService.getRewardsForAllCustomers(
+                months, getEffectiveDate(asOfDate)));
+    }
+
+    private LocalDate getEffectiveDate(LocalDate asOfDate) {
+        return asOfDate == null ? LocalDate.now() : asOfDate;
     }
 }
