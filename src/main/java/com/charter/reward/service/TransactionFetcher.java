@@ -1,6 +1,6 @@
-package com.retailer.rewards.service;
+package com.charter.reward.service;
 
-import com.retailer.rewards.model.Transaction;
+import com.charter.reward.model.Transaction;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -8,24 +8,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+/** Asynchronously fetches transactions belonging to a customer. */
 @Service
 public class TransactionFetcher {
-
+    /** Returns only transactions for the requested customer without blocking the controller thread. */
     @Async
     public CompletableFuture<List<Transaction>> fetchByCustomerId(String customerId, List<Transaction> allTransactions) {
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
         List<Transaction> result = new ArrayList<>();
-        for (Transaction t : allTransactions) {
-            if (t.getCustomerId().equals(customerId)) {
-                result.add(t);
-            }
+        for (Transaction transaction : allTransactions) {
+            if (transaction.getCustomerId().equals(customerId)) result.add(transaction);
         }
-
         return CompletableFuture.completedFuture(result);
     }
 }

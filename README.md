@@ -1,95 +1,101 @@
 # Rewards Program
 
-This is my solution for the customer rewards points assignment.
+Spring Boot REST API for calculating customer reward points.
 
-## Problem
-
-A customer earns points on every purchase:
-- 2 points for every dollar spent over $100
-- 1 point for every dollar spent between $50 and $100
-- nothing for the first $50
-
-Example: a $120 purchase = 2x$20 + 1x$50 = 90 points.
-
-Given a customer's transactions over a period, I need to calculate the
-points earned per month and the total.
-
-## How I built it
-
-- `Customer` and `Transaction` are simple model classes.
-- `RewardService` has the points formula and the main logic for
-  grouping transactions by month and adding up the points.
-- `TransactionFetcher` simulates fetching a customer's transactions
-  asynchronously (like calling a database or another service) using
-  `@Async`, so it doesn't block the main thread while "fetching".
-- `RewardController` exposes the REST endpoint.
-- `CustomerNotFoundException` is thrown if you ask for a customer
-  that doesn't exist, and the controller returns a 404 for that.
-- I used an in-memory list of sample customers and transactions
-  instead of a real database, just to keep the demo simple.
+## Reward rules
+- 2 points for every whole dollar spent over $100.
+- 1 point for every whole dollar spent between $50 and $100.
+- 0 points for the first $50.
+- Example: $120 = 90 points.
 
 ## API
+`GET /api/rewards/{customerId}?months=3`
 
-```
-GET /api/rewards/{customerId}?months=3
-```
+Both `customerId` and `months` are required. `customerId` must not be blank and `months` must be greater than 0. The requested window is based on full calendar months and includes the current month.
 
-`months` is optional and defaults to 3.
-
-Example:
-```
-GET /api/rewards/C001
+Successful request:
+```bash
+curl "http://localhost:8080/api/rewards/C001?months=3"
 ```
 
-Response:
+Successful response shape:
 ```json
 {
   "customerId": "C001",
-  "customerName": "Alice Johnson",
-  "monthlyPoints": {
-    "2026-06": 90,
-    "2026-07": 299,
-    "2026-08": 150
-  },
-  "totalPoints": 539
+  "months": 3,
+  "monthly": [
+    {
+      "year": 2026,
+      "month": "September",
+      "points": 90,
+      "transactions": [{"date":"2026-09-01","amount":120.00,"points":90}]
+    }
+  ],
+  "total": 90
 }
 ```
 
-If the customer doesn't exist you get a 404 with an error message.
-If `months` is 0 or negative you get a 400.
-
-## Sample data
-
-Customers: C001 (Alice Johnson), C002 (Brian Smith), C003 (Carla Diaz)
-
-I added transactions spread across June, July and August 2026, plus
-one older transaction (May) on C001 just to prove that transactions
-outside the requested window don't get counted.
-
-## Running it
-
+Error request:
+```bash
+curl "http://localhost:8080/api/rewards/C999?months=3"
 ```
+
+404 response shape:
+```json
+{"timestamp":"2026-09-10T12:00:00Z","status":404,"message":"Customer not found: C999"}
+```
+
+## Build and run
+Requirements: Java 8+ and Maven 3.6+.
+```bash
+mvn clean package
 mvn spring-boot:run
 ```
 
-Then hit it with curl or a browser:
-```
-curl "http://localhost:8080/api/rewards/C001"
+Health check after startup:
+```bash
+curl "http://localhost:8080/actuator/health"
 ```
 
-## Running the tests
-
-```
+## Tests
+```bash
 mvn test
 ```
 
-The tests check the points formula (including the $120 = 90 points
-example from the assignment) and that an unknown customer id throws
-an exception.
+The tests use JUnit 5 and Mockito and cover reward thresholds, negative amounts, input validation, customer-not-found handling, missing query parameters, 3-month aggregation, full-calendar-window filtering, multiple transactions in the same month, monthly totals, transaction-level points, and multiple customers.
 
-## Notes / things I'd do differently with more time
+## Postman verification
+Create GET requests for the successful and error URLs above. A real Postman screenshot should be captured after running the application; no screenshot is fabricated in this repository.
 
-- Right now the data is hardcoded in the service class. In a real
-  app this would come from a database.
-- Amounts are stored as `double`. For real money handling
-  `BigDecimal` would be safer, kept it simple here.
+
+## Design assumptions and decisions
+- Money is represented with `BigDecimal`; reward points use whole dollars (fractional cents do not earn partial points).
+- The requested range contains full calendar months and includes the current calendar month.
+- Sample customers/transactions are in-memory because this exercise does not require a database.
+- Reward calculation is isolated in `RewardCalculator`; orchestration/filtering stays in `RewardService`.
+- Transaction fetching is intentionally asynchronous using Spring `@Async` and `CompletableFuture`. The controller returns the future directly, so the request thread is not blocked with `get()` or `join()` in production code. This demonstrates a non-blocking service boundary that can later wrap database/remote I/O.
+- Only `/actuator/health` is exposed for operational health checking.
+
+## Validation/error cases
+- Missing `months` -> HTTP 400 structured `ApiError`.
+- `months <= 0` or blank customer id -> HTTP 400.
+- Unknown customer -> HTTP 404.
+- Negative transaction amount -> rejected by `RewardCalculator`.
+
+## Postman screenshots
+Actual Postman screenshots must be captured after the application is running. They are intentionally not fabricated. Capture at least: successful C001 request, unknown C999 (404), missing `months` (400), and `/actuator/health`.
+
+## Review fixes implemented
+- Standard base package is `com.charter.reward`.
+- Application name, logging, async executor and health configuration are documented in `application.properties`.
+- Reward formula is isolated in `RewardCalculator`.
+- Lombok removes model/DTO getter boilerplate; Java 8 compatibility is retained.
+- Monetary values use `BigDecimal`.
+- Customer lookup uses stream/find-first rather than an unnecessary loop.
+- Service-layer validation is retained as the business safety net; controller constraints use `@Validated`, `@Min` and `@Pattern` for HTTP-boundary validation.
+- Production request flow remains asynchronous and does not call `get()`/`join()`.
+- Structured `ApiError` responses are produced by `@RestControllerAdvice`.
+- Responses use typed DTOs and include transaction-level and monthly breakdowns.
+- Sample transaction dates are relative to `LocalDate.now()` rather than fixed calendar dates.
+- Public application/API classes and methods have JavaDoc, and request/outcome/error logging is present.
+- Mockito service tests and MockMvc MVC-slice tests cover success, 404, 400, malformed input, missing query parameters, negative amounts, three-month aggregation, window filtering, multiple customers, and multiple transactions in one month.
