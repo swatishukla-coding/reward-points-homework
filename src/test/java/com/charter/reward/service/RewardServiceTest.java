@@ -2,12 +2,12 @@ package com.charter.reward.service;
 
 import com.charter.reward.dto.RewardResponse;
 import com.charter.reward.exception.CustomerNotFoundException;
-import com.charter.reward.model.Customer;
 import com.charter.reward.model.Transaction;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -26,14 +26,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RewardServiceTest {
     @Mock private TransactionFetcher transactionFetcher;
-    private RewardService rewardService;
-    private RewardCalculator calculator;
-
-    @BeforeEach
-    void setUp() {
-        calculator = new RewardCalculator();
-        rewardService = new RewardService(transactionFetcher, calculator);
-    }
+    @Spy private RewardCalculator calculator = new RewardCalculator();
+    @InjectMocks private RewardService rewardService;
 
     @Test
     void aggregatesThreeMonthsAndGroupsTransactions() throws Exception {
@@ -48,6 +42,25 @@ class RewardServiceTest {
         assertEquals(165, response.getTotal());
         assertEquals(3, response.getMonthly().size());
         assertEquals(1, response.getMonthly().get(0).getTransactions().size());
+    }
+
+
+    @Test
+    void aggregatesMultipleTransactionsInSameMonth() throws Exception {
+        LocalDate now = LocalDate.now();
+        List<Transaction> data = Arrays.asList(
+                tx("M1", "C001", now.withDayOfMonth(1), "120"),
+                tx("M2", "C001", now.withDayOfMonth(2), "75"));
+        when(transactionFetcher.fetchByCustomerId(eq("C001"), anyList()))
+                .thenReturn(CompletableFuture.completedFuture(data));
+
+        RewardResponse response = rewardService.getRewardsForCustomer("C001", 1).get();
+        assertEquals(115, response.getTotal());
+        assertEquals(1, response.getMonthly().size());
+        assertEquals(115, response.getMonthly().get(0).getPoints());
+        assertEquals(2, response.getMonthly().get(0).getTransactions().size());
+        assertEquals(90, response.getMonthly().get(0).getTransactions().get(0).getPoints());
+        assertEquals(25, response.getMonthly().get(0).getTransactions().get(1).getPoints());
     }
 
     @Test
@@ -65,6 +78,10 @@ class RewardServiceTest {
         when(transactionFetcher.fetchByCustomerId(eq("C002"), anyList()))
                 .thenReturn(CompletableFuture.completedFuture(Collections.singletonList(tx("X", "C002", LocalDate.now(), "120"))));
         assertEquals(90, rewardService.getRewardsForCustomer("C002", 1).get().getTotal());
+
+        when(transactionFetcher.fetchByCustomerId(eq("C003"), anyList()))
+                .thenReturn(CompletableFuture.completedFuture(Collections.singletonList(tx("Y", "C003", LocalDate.now(), "100"))));
+        assertEquals(50, rewardService.getRewardsForCustomer("C003", 1).get().getTotal());
     }
 
     @Test
@@ -80,6 +97,8 @@ class RewardServiceTest {
         assertThrows(IllegalArgumentException.class, () -> rewardService.getRewardsForCustomer("C001", -1));
         assertThrows(IllegalArgumentException.class, () -> rewardService.getRewardsForCustomer("", 3));
         assertThrows(IllegalArgumentException.class, () -> rewardService.getRewardsForCustomer("   ", 3));
+        assertThrows(IllegalArgumentException.class, () -> rewardService.getRewardsForCustomer(null, 3));
+        assertThrows(IllegalArgumentException.class, () -> rewardService.getRewardsForCustomer("ABC", 3));
     }
 
     private static Transaction tx(String id, String customer, LocalDate date, String amount) {

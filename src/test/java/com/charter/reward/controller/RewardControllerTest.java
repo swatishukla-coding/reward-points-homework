@@ -59,6 +59,20 @@ class RewardControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+
+    @Test
+    void negativeMonthsReturns400() throws Exception {
+        mockMvc.perform(get("/api/rewards/C001").param("months", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void nonNumericMonthsReturns400() throws Exception {
+        mockMvc.perform(get("/api/rewards/C001").param("months", "abc"))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void malformedCustomerIdReturns400() throws Exception {
         mockMvc.perform(get("/api/rewards/ABC").param("months", "3"))

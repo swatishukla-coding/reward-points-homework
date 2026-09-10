@@ -11,63 +11,59 @@ Spring Boot REST API for calculating customer reward points.
 ## API
 `GET /api/rewards/{customerId}?months=3`
 
-Both `customerId` and `months` are required. `customerId` must not be blank and `months` must be greater than 0. The requested window is based on full calendar months and includes the current month.
+`customerId` must match `C` followed by 3 digits. `months` is required and must be greater than 0. The requested window uses full calendar months and includes the current month.
 
-Successful request:
 ```bash
 curl "http://localhost:8080/api/rewards/C001?months=3"
 ```
 
-Successful response shape:
-```json
-{
-  "customerId": "C001",
-  "months": 3,
-  "monthly": [
-    {
-      "year": 2026,
-      "month": "September",
-      "points": 90,
-      "transactions": [{"date":"2026-09-01","amount":120.00,"points":90}]
-    }
-  ],
-  "total": 90
-}
-```
+Response contains customer id, requested months, monthly reward objects, transaction date/amount/points, and overall total.
 
-Error request:
+## Build and run
+Requirements: Java 8+ and Maven 3.6+.
+
 ```bash
-curl "http://localhost:8080/api/rewards/C999?months=3"
-```
-
-404 response shape:
-```json
-{"timestamp":"2026-09-10T12:00:00Z","status":404,"message":"Customer not found: C999"}
-```
-
-## Run
-```bash
+mvn clean package
 mvn spring-boot:run
 ```
 
+```bash
+curl "http://localhost:8080/actuator/health"
+```
+
 ## Tests
+
 ```bash
 mvn test
 ```
 
-The tests use JUnit 5 and Mockito and cover reward thresholds, negative amounts, input validation, customer-not-found handling, 3-month aggregation, calendar-window filtering, monthly grouping, totals, and multiple customers.
+JUnit 5, Mockito and MockMvc tests cover reward thresholds, negative amounts, null/blank/malformed customer IDs, zero/negative/non-numeric/missing months, unknown customers, C002 and C003, three-month aggregation, full-calendar-window filtering, multiple transactions in one month, monthly totals, transaction-level points, HTTP 200, HTTP 400 and HTTP 404.
 
-## Postman verification
-Create GET requests for the successful and error URLs above. A real Postman screenshot should be captured after running the application; no screenshot is fabricated in this repository.
+## Validation and error handling
+- Missing or invalid `months` returns HTTP 400.
+- Blank or malformed customer id is rejected.
+- Unknown customer returns HTTP 404.
+- Negative transaction amount is rejected.
+- Errors use a structured response containing `timestamp`, `status` and `message`.
 
-## Postman API Result Screenshots
+## Design
+- Base package: `com.charter.reward`.
+- Money uses `BigDecimal`.
+- DTOs and models use Lombok to remove getter/constructor boilerplate.
+- Reward calculation is isolated in `RewardCalculator`.
+- Customer lookup uses stream `findFirst()`.
+- Controller validation uses `@Validated`, `@Pattern` and `@Min`; service validation remains the business validation layer.
+- Transaction fetching uses `@Async` and `CompletableFuture`; production request handling does not call `get()` or `join()`.
+- Response uses typed DTOs with monthly and transaction-level breakdowns.
+- Sample transaction dates are relative to `LocalDate.now()`.
+- `GlobalExceptionHandler` provides structured 400, 404 and 500 responses.
+- Application logging, async executor settings and Actuator health configuration are included.
+- Public application/API classes and methods contain required JavaDoc.
 
-The following screenshot documents the requested API success and error response scenarios:
+## API result screenshot
 
-![Postman API results](screenshots/postman-api-results.png)
+The repository includes the API result screenshot used for submission verification.
 
-Covered scenarios:
-- Valid customer: `C001?months=3` — 200 OK
-- Customer not found: `C999?months=3` — 404 Not Found
-- Invalid months: `C001?months=0` — 400 Bad Request
-- Missing `months` parameter — 400 Bad Request
+![API result screenshot](screenshots/postman-api-results.png)
+
+The screenshot covers the submitted success/error verification scenarios. The application was also verified from Termux with the running local Spring Boot server and `curl` requests for success, customer-not-found, invalid months and missing months scenarios.
