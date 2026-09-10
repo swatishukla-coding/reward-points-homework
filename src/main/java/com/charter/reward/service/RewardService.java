@@ -6,8 +6,6 @@ import com.charter.reward.dto.TransactionReward;
 import com.charter.reward.exception.CustomerNotFoundException;
 import com.charter.reward.model.Customer;
 import com.charter.reward.model.Transaction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -25,24 +23,26 @@ import java.util.concurrent.CompletableFuture;
 /** Coordinates customer lookup, transaction fetching, calendar filtering and reward aggregation. */
 @Service
 public class RewardService {
-    private static final Logger log = LoggerFactory.getLogger(RewardService.class);
     private final TransactionFetcher transactionFetcher;
     private final RewardCalculator rewardCalculator;
     private final List<Customer> customers;
     private final List<Transaction> transactions;
 
-    /** Creates the reward service with injected dependencies. */
     public RewardService(TransactionFetcher transactionFetcher, RewardCalculator rewardCalculator) {
+        this(transactionFetcher, rewardCalculator, sampleCustomers(), sampleTransactions());
+    }
+
+    RewardService(TransactionFetcher transactionFetcher, RewardCalculator rewardCalculator,
+                  List<Customer> customers, List<Transaction> transactions) {
         this.transactionFetcher = transactionFetcher;
         this.rewardCalculator = rewardCalculator;
-        this.customers = sampleCustomers();
-        this.transactions = sampleTransactions();
+        this.customers = customers;
+        this.transactions = transactions;
     }
 
     /** Returns rewards for the requested number of full calendar months, including the current month. */
     public CompletableFuture<RewardResponse> getRewardsForCustomer(String customerId, int months) {
         validateInput(customerId, months);
-        log.debug("Calculating rewards for customerId={} months={}", customerId, months);
         Customer customer = findCustomer(customerId);
         YearMonth currentMonth = YearMonth.now();
         LocalDate startDate = currentMonth.minusMonths(months - 1L).atDay(1);
@@ -79,15 +79,12 @@ public class RewardService {
 
     private void validateInput(String customerId, int months) {
         if (customerId == null || customerId.trim().isEmpty()) throw new IllegalArgumentException("customerId must not be blank");
-        if (!customerId.matches("C\\d{3}")) throw new IllegalArgumentException("customerId must match C followed by 3 digits");
         if (months <= 0) throw new IllegalArgumentException("months must be greater than 0");
     }
 
     private Customer findCustomer(String customerId) {
-        return customers.stream()
-                .filter(customer -> customer.getCustomerId().equals(customerId))
-                .findFirst()
-                .orElseThrow(() -> new CustomerNotFoundException(customerId));
+        for (Customer customer : customers) if (customer.getCustomerId().equals(customerId)) return customer;
+        throw new CustomerNotFoundException(customerId);
     }
 
     private static List<Customer> sampleCustomers() {

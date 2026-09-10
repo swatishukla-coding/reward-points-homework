@@ -8,10 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/** Asynchronously fetches transactions belonging to a customer. */
 @Service
 public class TransactionFetcher {
-    /** Returns only transactions for the requested customer without blocking the controller thread. */
     @Async
     public CompletableFuture<List<Transaction>> fetchByCustomerId(String customerId, List<Transaction> allTransactions) {
         List<Transaction> result = new ArrayList<>();

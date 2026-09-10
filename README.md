@@ -45,16 +45,9 @@ curl "http://localhost:8080/api/rewards/C999?months=3"
 {"timestamp":"2026-09-10T12:00:00Z","status":404,"message":"Customer not found: C999"}
 ```
 
-## Build and run
-Requirements: Java 8+ and Maven 3.6+.
+## Run
 ```bash
-mvn clean package
 mvn spring-boot:run
-```
-
-Health check after startup:
-```bash
-curl "http://localhost:8080/actuator/health"
 ```
 
 ## Tests
@@ -62,40 +55,19 @@ curl "http://localhost:8080/actuator/health"
 mvn test
 ```
 
-The tests use JUnit 5 and Mockito and cover reward thresholds, negative amounts, input validation, customer-not-found handling, missing query parameters, 3-month aggregation, full-calendar-window filtering, multiple transactions in the same month, monthly totals, transaction-level points, and multiple customers.
+The tests use JUnit 5 and Mockito and cover reward thresholds, negative amounts, input validation, customer-not-found handling, 3-month aggregation, calendar-window filtering, monthly grouping, totals, and multiple customers.
 
 ## Postman verification
 Create GET requests for the successful and error URLs above. A real Postman screenshot should be captured after running the application; no screenshot is fabricated in this repository.
 
+## Postman API Result Screenshots
 
-## Design assumptions and decisions
-- Money is represented with `BigDecimal`; reward points use whole dollars (fractional cents do not earn partial points).
-- The requested range contains full calendar months and includes the current calendar month.
-- Sample customers/transactions are in-memory because this exercise does not require a database.
-- Reward calculation is isolated in `RewardCalculator`; orchestration/filtering stays in `RewardService`.
-- Transaction fetching is intentionally asynchronous using Spring `@Async` and `CompletableFuture`. The controller returns the future directly, so the request thread is not blocked with `get()` or `join()` in production code. This demonstrates a non-blocking service boundary that can later wrap database/remote I/O.
-- Only `/actuator/health` is exposed for operational health checking.
+The following screenshot documents the requested API success and error response scenarios:
 
-## Validation/error cases
-- Missing `months` -> HTTP 400 structured `ApiError`.
-- `months <= 0` or blank customer id -> HTTP 400.
-- Unknown customer -> HTTP 404.
-- Negative transaction amount -> rejected by `RewardCalculator`.
+![Postman API results](screenshots/postman-api-results.png)
 
-## Postman screenshots
-Actual Postman screenshots must be captured after the application is running. They are intentionally not fabricated. Capture at least: successful C001 request, unknown C999 (404), missing `months` (400), and `/actuator/health`.
-
-## Review fixes implemented
-- Standard base package is `com.charter.reward`.
-- Application name, logging, async executor and health configuration are documented in `application.properties`.
-- Reward formula is isolated in `RewardCalculator`.
-- Lombok removes model/DTO getter boilerplate; Java 8 compatibility is retained.
-- Monetary values use `BigDecimal`.
-- Customer lookup uses stream/find-first rather than an unnecessary loop.
-- Service-layer validation is retained as the business safety net; controller constraints use `@Validated`, `@Min` and `@Pattern` for HTTP-boundary validation.
-- Production request flow remains asynchronous and does not call `get()`/`join()`.
-- Structured `ApiError` responses are produced by `@RestControllerAdvice`.
-- Responses use typed DTOs and include transaction-level and monthly breakdowns.
-- Sample transaction dates are relative to `LocalDate.now()` rather than fixed calendar dates.
-- Public application/API classes and methods have JavaDoc, and request/outcome/error logging is present.
-- Mockito service tests and MockMvc MVC-slice tests cover success, 404, 400, malformed input, missing query parameters, negative amounts, three-month aggregation, window filtering, multiple customers, and multiple transactions in one month.
+Covered scenarios:
+- Valid customer: `C001?months=3` — 200 OK
+- Customer not found: `C999?months=3` — 404 Not Found
+- Invalid months: `C001?months=0` — 400 Bad Request
+- Missing `months` parameter — 400 Bad Request
