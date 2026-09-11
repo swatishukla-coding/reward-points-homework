@@ -17,6 +17,20 @@
     <packaging>jar</packaging>
     <name>rewards-program</name>
     <description>Retailer Customer Rewards Program REST API</description>
+    <url>https://github.com/swatishukla-coding/reward-points-homework</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Rewards Program Team</name>
+        </developer>
+    </developers>
 
     <properties>
         <java.version>1.8</java.version>

@@ -5,9 +5,10 @@ import com.charter.reward.dto.MonthlyRewardDto;
 import com.charter.reward.dto.TransactionDetailDto;
 import com.charter.reward.exception.CustomerNotFoundException;
 import com.charter.reward.exception.TransactionFetchException;
+import com.charter.reward.exception.ValidationException;
 import com.charter.reward.model.Customer;
 import com.charter.reward.model.Transaction;
-import com.charter.reward.repository.TransactionStore;
+import com.charter.reward.repository.CustomerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.Objects;
+import java.util.concurrent.CompletionException;
 
 /**
  * Business service for customer reward calculations and date-window aggregation.
@@ -28,23 +29,21 @@ import java.util.Objects;
 public class RewardsService {
 
     private static final Logger log = LoggerFactory.getLogger(RewardsService.class);
-    private static final long FETCH_TIMEOUT_SECONDS = 5;
-
-    private final TransactionStore transactionStore;
+    private final CustomerRepository customerRepository;
     private final TransactionDataService transactionDataService;
     private final RewardsCalculationService calculationService;
 
     /**
-     * Creates the service with the transaction store and reward calculation dependencies.
+    * Creates the service with the customer repository and reward calculation dependencies.
      *
-     * @param transactionStore source of customer and transaction data
+        * @param customerRepository source of customer data
      * @param transactionDataService access wrapper for customer transactions
      * @param calculationService reward calculation logic used for each transaction
      */
-    public RewardsService(TransactionStore transactionStore,
+    public RewardsService(CustomerRepository customerRepository,
                            TransactionDataService transactionDataService,
                            RewardsCalculationService calculationService) {
-        this.transactionStore = transactionStore;
+        this.customerRepository = customerRepository;
         this.transactionDataService = transactionDataService;
         this.calculationService = calculationService;
     }
@@ -62,7 +61,7 @@ public class RewardsService {
         validateMonths(months);
         validateAsOfDate(asOfDate);
 
-        Customer customer = transactionStore.findCustomerById(customerId)
+        Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId));
 
         LocalDate periodStart = asOfDate.minusMonths(months).plusDays(1);
@@ -94,7 +93,7 @@ public class RewardsService {
         validateAsOfDate(asOfDate);
 
         List<CustomerRewardsResponse> rewards = new ArrayList<>();
-        for (Customer customer : transactionStore.findAllCustomers()) {
+        for (Customer customer : customerRepository.findAll()) {
             rewards.add(getRewardsForCustomer(customer.getCustomerId(), months, asOfDate));
         }
         return rewards;
@@ -145,7 +144,11 @@ public class RewardsService {
 
     private List<Transaction> fetchTransactions(String customerId) {
         try {
-            return transactionDataService.fetchTransactionsForCustomer(customerId);
+            return transactionDataService.fetchTransactionsForCustomer(customerId).join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            log.error("Failed to fetch transactions for customer {}", customerId, cause);
+            throw new TransactionFetchException(customerId, cause);
         } catch (RuntimeException e) {
             log.error("Failed to fetch transactions for customer {}", customerId, e);
             throw new TransactionFetchException(customerId, e);
@@ -154,19 +157,19 @@ public class RewardsService {
 
     private void validateCustomerId(String customerId) {
         if (customerId == null || customerId.trim().isEmpty()) {
-            throw new IllegalArgumentException("customerId must not be blank");
+            throw new ValidationException("customerId must not be blank");
         }
     }
 
     private void validateMonths(int months) {
         if (months <= 0) {
-            throw new IllegalArgumentException("months must be greater than 0");
+            throw new ValidationException("months must be greater than 0");
         }
     }
 
     private void validateAsOfDate(LocalDate asOfDate) {
         if (asOfDate == null) {
-            throw new IllegalArgumentException("asOfDate must not be null");
+            throw new ValidationException("asOfDate must not be null");
         }
     }
 }

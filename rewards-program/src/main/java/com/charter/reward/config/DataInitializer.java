@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -20,7 +21,7 @@ public class DataInitializer {
                                TransactionRepository transactionRepository) {
         return args -> {
             if (customerRepository.count() == 0) {
-                customerRepository.saveAll(List.of(
+                customerRepository.saveAll(Arrays.asList(
                         new Customer("C001", "Alice Johnson"),
                         new Customer("C002", "Brian Smith"),
                         new Customer("C003", "Carla Diaz")
@@ -28,7 +29,7 @@ public class DataInitializer {
             }
 
             if (transactionRepository.count() == 0) {
-                transactionRepository.saveAll(List.of(
+                transactionRepository.saveAll(Arrays.asList(
                         new Transaction("T0001", "C001", LocalDate.of(2026, 5, 15), new BigDecimal("999.00")),
                         new Transaction("T0002", "C001", LocalDate.of(2026, 6, 5), new BigDecimal("120.00")),
                         new Transaction("T0003", "C001", LocalDate.of(2026, 6, 18), new BigDecimal("45.00")),

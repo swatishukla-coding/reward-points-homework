@@ -9,10 +9,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import javax.validation.ConstraintViolationException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -44,11 +48,56 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException.class,
             MethodArgumentTypeMismatchException.class,
             MissingServletRequestParameterException.class,
-            IllegalArgumentException.class
+            ValidationException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, WebRequest request) {
         log.warn("Invalid request: {}", ex.getMessage());
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return build(HttpStatus.BAD_REQUEST, validationMessage(ex), request);
+    }
+
+    /**
+     * Converts wrapped asynchronous failures into structured API errors.
+     *
+     * @param ex asynchronous wrapper exception
+     * @param request current web request metadata
+     * @return structured error response
+     */
+    @ExceptionHandler({CompletionException.class, ExecutionException.class})
+    public ResponseEntity<ErrorResponse> handleAsyncFailure(Exception ex, WebRequest request) {
+        Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+        if (cause instanceof CustomerNotFoundException) {
+            return build(HttpStatus.NOT_FOUND, cause.getMessage(), request);
+        }
+        if (cause instanceof TransactionFetchException) {
+            return build(HttpStatus.SERVICE_UNAVAILABLE, cause.getMessage(), request);
+        }
+        log.error("Async request failed", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+    }
+
+    /**
+     * Converts unknown routes into a structured 404 response.
+     *
+     * @param ex exception describing the missing route
+     * @param request current web request metadata
+     * @return structured 404 response
+     */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoHandler(NoHandlerFoundException ex, WebRequest request) {
+        return build(HttpStatus.NOT_FOUND, "The requested endpoint was not found", request);
+    }
+
+    /**
+     * Converts unsupported HTTP methods into a structured 405 response.
+     *
+     * @param ex exception describing the unsupported method
+     * @param request current web request metadata
+     * @return structured 405 response
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, WebRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "HTTP method is not supported for this endpoint", request);
     }
 
     /**
@@ -81,5 +130,23 @@ public class GlobalExceptionHandler {
         String path = request.getDescription(false).replace("uri=", "");
         ErrorResponse body = new ErrorResponse(status.value(), status.getReasonPhrase(), message, path);
         return ResponseEntity.status(status).body(body);
+    }
+
+    private String validationMessage(Exception ex) {
+        if (ex instanceof MethodArgumentTypeMismatchException) {
+            MethodArgumentTypeMismatchException mismatch = (MethodArgumentTypeMismatchException) ex;
+            return "Invalid value for parameter '" + mismatch.getName() + "'";
+        }
+        if (ex instanceof MissingServletRequestParameterException) {
+            MissingServletRequestParameterException missing = (MissingServletRequestParameterException) ex;
+            return "Required parameter '" + missing.getParameterName() + "' is missing";
+        }
+        if (ex instanceof ConstraintViolationException || ex instanceof MethodArgumentNotValidException) {
+            return "Request validation failed";
+        }
+        if (ex instanceof ValidationException && ex.getMessage() != null) {
+            return ex.getMessage();
+        }
+        return "Request validation failed";
     }
 }

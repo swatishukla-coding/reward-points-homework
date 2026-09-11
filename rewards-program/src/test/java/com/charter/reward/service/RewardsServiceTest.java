@@ -5,7 +5,7 @@ import com.charter.reward.dto.MonthlyRewardDto;
 import com.charter.reward.exception.CustomerNotFoundException;
 import com.charter.reward.model.Customer;
 import com.charter.reward.model.Transaction;
-import com.charter.reward.repository.TransactionStore;
+import com.charter.reward.repository.CustomerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
 class RewardsServiceTest {
 
     @Mock
-    private TransactionStore transactionStore;
+        private CustomerRepository customerRepository;
 
     @Mock
     private TransactionDataService transactionDataService;
@@ -40,12 +40,12 @@ class RewardsServiceTest {
 
     @BeforeEach
     void setUp() {
-        rewardsService = new RewardsService(transactionStore, transactionDataService, new RewardsCalculationService());
+        rewardsService = new RewardsService(customerRepository, transactionDataService, new RewardsCalculationService());
     }
 
     @Test
     void throwsWhenCustomerDoesNotExist() {
-        when(transactionStore.findCustomerById("UNKNOWN")).thenReturn(Optional.empty());
+        when(customerRepository.findById("UNKNOWN")).thenReturn(Optional.empty());
 
         assertThrows(CustomerNotFoundException.class,
                 () -> rewardsService.getRewardsForCustomer("UNKNOWN", 3, AS_OF));
@@ -53,7 +53,7 @@ class RewardsServiceTest {
 
     @Test
     void groupsPointsByMonthAndExcludesTransactionsOutsideWindow() {
-        when(transactionStore.findCustomerById("C001"))
+        when(customerRepository.findById("C001"))
                 .thenReturn(Optional.of(new Customer("C001", "Alice Johnson")));
 
         List<Transaction> transactions = Arrays.asList(
@@ -69,7 +69,7 @@ class RewardsServiceTest {
         );
 
         when(transactionDataService.fetchTransactionsForCustomer("C001"))
-                .thenReturn(CompletableFuture.completedFuture(transactions));
+            .thenReturn(CompletableFuture.completedFuture(transactions));
 
         CustomerRewardsResponse response = rewardsService.getRewardsForCustomer("C001", 3, AS_OF);
 
@@ -88,10 +88,10 @@ class RewardsServiceTest {
 
     @Test
     void customerWithNoTransactionsInWindowReturnsZeroPoints() {
-        when(transactionStore.findCustomerById("C002"))
+        when(customerRepository.findById("C002"))
                 .thenReturn(Optional.of(new Customer("C002", "Brian Smith")));
         when(transactionDataService.fetchTransactionsForCustomer("C002"))
-                .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         CustomerRewardsResponse response = rewardsService.getRewardsForCustomer("C002", 3, AS_OF);
 
@@ -115,14 +115,16 @@ class RewardsServiceTest {
 
     @Test
     void allCustomersReturnsResponsesForEachCustomer() {
-        when(transactionStore.findAllCustomers()).thenReturn(Arrays.asList(
+        when(customerRepository.findAll()).thenReturn(Arrays.asList(
                 new Customer("C001", "Alice Johnson"),
                 new Customer("C002", "Brian Smith")
         ));
-        when(transactionStore.findCustomerById("C001")).thenReturn(Optional.of(new Customer("C001", "Alice Johnson")));
-        when(transactionStore.findCustomerById("C002")).thenReturn(Optional.of(new Customer("C002", "Brian Smith")));
-        when(transactionDataService.fetchTransactionsForCustomer("C001")).thenReturn(Collections.emptyList());
-        when(transactionDataService.fetchTransactionsForCustomer("C002")).thenReturn(Collections.emptyList());
+        when(customerRepository.findById("C001")).thenReturn(Optional.of(new Customer("C001", "Alice Johnson")));
+        when(customerRepository.findById("C002")).thenReturn(Optional.of(new Customer("C002", "Brian Smith")));
+        when(transactionDataService.fetchTransactionsForCustomer("C001"))
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+        when(transactionDataService.fetchTransactionsForCustomer("C002"))
+            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 
         List<CustomerRewardsResponse> responses = rewardsService.getRewardsForAllCustomers(3, AS_OF);
 
