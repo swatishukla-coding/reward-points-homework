@@ -28,4 +28,4 @@ spring:
 logging:
   level:
     root: INFO
-    com.retailer.rewards: DEBUG
+    com.charter.reward: DEBUG

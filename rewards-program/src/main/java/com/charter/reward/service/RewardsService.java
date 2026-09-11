@@ -20,7 +20,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletionException;
 
 /**
  * Business service for customer reward calculations and date-window aggregation.
@@ -144,11 +143,7 @@ public class RewardsService {
 
     private List<Transaction> fetchTransactions(String customerId) {
         try {
-            return transactionDataService.fetchTransactionsForCustomer(customerId).join();
-        } catch (CompletionException e) {
-            Throwable cause = e.getCause() == null ? e : e.getCause();
-            log.error("Failed to fetch transactions for customer {}", customerId, cause);
-            throw new TransactionFetchException(customerId, cause);
+            return transactionDataService.fetchTransactionsForCustomer(customerId);
         } catch (RuntimeException e) {
             log.error("Failed to fetch transactions for customer {}", customerId, e);
             throw new TransactionFetchException(customerId, e);

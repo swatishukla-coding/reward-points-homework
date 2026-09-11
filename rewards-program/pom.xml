@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.retailer</groupId>
+    <groupId>com.charter</groupId>
     <artifactId>rewards-program</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>

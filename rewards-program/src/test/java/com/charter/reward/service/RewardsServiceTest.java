@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -69,7 +68,7 @@ class RewardsServiceTest {
         );
 
         when(transactionDataService.fetchTransactionsForCustomer("C001"))
-            .thenReturn(CompletableFuture.completedFuture(transactions));
+            .thenReturn(transactions);
 
         CustomerRewardsResponse response = rewardsService.getRewardsForCustomer("C001", 3, AS_OF);
 
@@ -91,7 +90,7 @@ class RewardsServiceTest {
         when(customerRepository.findById("C002"))
                 .thenReturn(Optional.of(new Customer("C002", "Brian Smith")));
         when(transactionDataService.fetchTransactionsForCustomer("C002"))
-            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+            .thenReturn(Collections.emptyList());
 
         CustomerRewardsResponse response = rewardsService.getRewardsForCustomer("C002", 3, AS_OF);
 
@@ -122,9 +121,9 @@ class RewardsServiceTest {
         when(customerRepository.findById("C001")).thenReturn(Optional.of(new Customer("C001", "Alice Johnson")));
         when(customerRepository.findById("C002")).thenReturn(Optional.of(new Customer("C002", "Brian Smith")));
         when(transactionDataService.fetchTransactionsForCustomer("C001"))
-            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+            .thenReturn(Collections.emptyList());
         when(transactionDataService.fetchTransactionsForCustomer("C002"))
-            .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+            .thenReturn(Collections.emptyList());
 
         List<CustomerRewardsResponse> responses = rewardsService.getRewardsForAllCustomers(3, AS_OF);
 

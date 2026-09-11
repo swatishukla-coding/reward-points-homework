@@ -15,8 +15,6 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import javax.validation.ConstraintViolationException;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -53,26 +51,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, WebRequest request) {
         log.warn("Invalid request: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, validationMessage(ex), request);
-    }
-
-    /**
-     * Converts wrapped asynchronous failures into structured API errors.
-     *
-     * @param ex asynchronous wrapper exception
-     * @param request current web request metadata
-     * @return structured error response
-     */
-    @ExceptionHandler({CompletionException.class, ExecutionException.class})
-    public ResponseEntity<ErrorResponse> handleAsyncFailure(Exception ex, WebRequest request) {
-        Throwable cause = ex.getCause() == null ? ex : ex.getCause();
-        if (cause instanceof CustomerNotFoundException) {
-            return build(HttpStatus.NOT_FOUND, cause.getMessage(), request);
-        }
-        if (cause instanceof TransactionFetchException) {
-            return build(HttpStatus.SERVICE_UNAVAILABLE, cause.getMessage(), request);
-        }
-        log.error("Async request failed", ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
     }
 
     /**

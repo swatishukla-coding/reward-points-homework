@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Retrieves customer transactions using the JPA repository.
@@ -20,7 +19,7 @@ public class TransactionDataService {
     private final TransactionRepository transactionRepository;
 
     /**
-    * Creates the transaction data service with a transaction repository dependency.
+     * Creates the transaction data service with a transaction repository dependency.
      *
     * @param transactionRepository database source for customer transactions
      */
@@ -32,12 +31,12 @@ public class TransactionDataService {
      * Retrieves all transactions for the specified customer.
      *
      * @param customerId unique customer identifier
-    * @return a completed future containing the customer's transactions
+         * @return the customer's transactions
      */
-    public CompletableFuture<List<Transaction>> fetchTransactionsForCustomer(String customerId) {
-        log.info("Fetching transactions for customer {}", customerId);
-        List<Transaction> transactions = transactionRepository.findByCustomerId(customerId);
-        log.info("Retrieved {} transaction(s) for customer {}", transactions.size(), customerId);
-        return CompletableFuture.completedFuture(transactions);
+        public List<Transaction> fetchTransactionsForCustomer(String customerId) {
+            log.info("Fetching transactions for customer {}", customerId);
+            List<Transaction> transactions = transactionRepository.findByCustomerId(customerId);
+            log.info("Retrieved {} transaction(s) for customer {}", transactions.size(), customerId);
+            return transactions;
     }
 }

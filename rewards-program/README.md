@@ -129,7 +129,8 @@ database is in-memory and is recreated when the application restarts.
 ## Limitations
 
 - H2 is an in-memory database, so data is not persistent between restarts.
-- The transaction lookup uses a completed `CompletableFuture` to simulate an asynchronous downstream data call.
+- The transaction lookup is synchronous because the local data source is an in-process JPA database.
 - Reward points are whole numbers and fractional calculated points are rounded down.
 
 Screenshots for the running application, build, and API success/error responses are in `docs/`.
+The `build-success.jpg` screenshot includes the test execution summary and build result.
