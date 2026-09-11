@@ -18,10 +18,21 @@ public class TransactionDataService {
 
     private final TransactionStore transactionStore;
 
+    /**
+     * Creates the transaction data service with a transaction store dependency.
+     *
+     * @param transactionStore in-memory data source for customer transactions
+     */
     public TransactionDataService(TransactionStore transactionStore) {
         this.transactionStore = transactionStore;
     }
 
+    /**
+     * Retrieves all transactions for the specified customer.
+     *
+     * @param customerId unique customer identifier
+     * @return all transactions associated with the customer
+     */
     public List<Transaction> fetchTransactionsForCustomer(String customerId) {
         log.info("Fetching transactions for customer {}", customerId);
         List<Transaction> transactions = transactionStore.findTransactionsByCustomerId(customerId);

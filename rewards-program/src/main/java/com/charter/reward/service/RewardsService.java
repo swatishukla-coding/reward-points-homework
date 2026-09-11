@@ -34,6 +34,13 @@ public class RewardsService {
     private final TransactionDataService transactionDataService;
     private final RewardsCalculationService calculationService;
 
+    /**
+     * Creates the service with the transaction store and reward calculation dependencies.
+     *
+     * @param transactionStore source of customer and transaction data
+     * @param transactionDataService access wrapper for customer transactions
+     * @param calculationService reward calculation logic used for each transaction
+     */
     public RewardsService(TransactionStore transactionStore,
                            TransactionDataService transactionDataService,
                            RewardsCalculationService calculationService) {
@@ -42,6 +49,14 @@ public class RewardsService {
         this.calculationService = calculationService;
     }
 
+    /**
+     * Calculates the reward summary for a single customer within the requested date range.
+     *
+     * @param customerId unique customer identifier
+     * @param months number of trailing months to include in the summary
+     * @param asOfDate end date of the calculation window
+     * @return reward summary for the requested customer
+     */
     public CustomerRewardsResponse getRewardsForCustomer(String customerId, int months, LocalDate asOfDate) {
         validateCustomerId(customerId);
         validateMonths(months);
@@ -67,6 +82,13 @@ public class RewardsService {
                 customer.getCustomerId(), customer.getName(), periodStart, asOfDate, totalPoints, monthlyBreakdown);
     }
 
+    /**
+     * Calculates reward summaries for every customer in the configured date range.
+     *
+     * @param months number of trailing months to include in each summary
+     * @param asOfDate end date of the calculation window
+     * @return reward summaries for each stored customer
+     */
     public List<CustomerRewardsResponse> getRewardsForAllCustomers(int months, LocalDate asOfDate) {
         validateMonths(months);
         validateAsOfDate(asOfDate);

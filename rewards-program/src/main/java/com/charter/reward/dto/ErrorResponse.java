@@ -13,6 +13,14 @@ public class ErrorResponse {
     private String message;
     private String path;
 
+    /**
+     * Creates a structured error payload for API responses.
+     *
+     * @param status HTTP status code
+     * @param error error category or reason phrase
+     * @param message descriptive message for the caller
+     * @param path request path associated with the error
+     */
     public ErrorResponse(int status, String error, String message, String path) {
         this.timestamp = LocalDateTime.now();
         this.status = status;
@@ -21,22 +29,37 @@ public class ErrorResponse {
         this.path = path;
     }
 
+    /**
+     * @return timestamp when the error response was created
+     */
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
 
+    /**
+     * @return HTTP status code
+     */
     public int getStatus() {
         return status;
     }
 
+    /**
+     * @return error category
+     */
     public String getError() {
         return error;
     }
 
+    /**
+     * @return detailed error message
+     */
     public String getMessage() {
         return message;
     }
 
+    /**
+     * @return request path for the failing endpoint
+     */
     public String getPath() {
         return path;
     }

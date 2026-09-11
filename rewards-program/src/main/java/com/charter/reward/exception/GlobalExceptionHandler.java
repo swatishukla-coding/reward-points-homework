@@ -19,12 +19,26 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /**
+     * Converts a missing customer error into a structured 404 response.
+     *
+     * @param ex exception raised when the customer does not exist
+     * @param request current web request metadata
+     * @return 404 response payload
+     */
     @ExceptionHandler(CustomerNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCustomerNotFound(CustomerNotFoundException ex, WebRequest request) {
         log.warn("Customer not found: {}", ex.getMessage());
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
+    /**
+     * Converts validation and request parsing errors into a structured 400 response.
+     *
+     * @param ex invalid request exception
+     * @param request current web request metadata
+     * @return 400 response payload
+     */
     @ExceptionHandler({
             ConstraintViolationException.class,
             MethodArgumentNotValidException.class,
@@ -37,12 +51,26 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    /**
+     * Converts transaction lookup failures into a structured 503 response.
+     *
+     * @param ex transaction fetch exception
+     * @param request current web request metadata
+     * @return 503 response payload
+     */
     @ExceptionHandler(TransactionFetchException.class)
     public ResponseEntity<ErrorResponse> handleTransactionFetch(TransactionFetchException ex, WebRequest request) {
         log.error("Transaction fetch failed", ex);
         return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
     }
 
+    /**
+     * Converts unexpected application failures into a structured 500 response.
+     *
+     * @param ex unexpected exception
+     * @param request current web request metadata
+     * @return 500 response payload
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex, WebRequest request) {
         log.error("Unexpected error handling request", ex);

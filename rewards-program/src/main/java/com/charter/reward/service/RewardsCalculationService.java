@@ -12,6 +12,12 @@ public class RewardsCalculationService {
     private static final BigDecimal UPPER_THRESHOLD = BigDecimal.valueOf(100);
     private static final BigDecimal TWO = BigDecimal.valueOf(2);
 
+    /**
+     * Converts a transaction amount into reward points based on the standard loyalty rules.
+     *
+     * @param amount transaction amount to evaluate
+     * @return calculated points for the transaction, rounded down to an integer
+     */
     public int calculatePoints(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             return 0;
