@@ -150,5 +150,11 @@ database is in-memory and is recreated when the application restarts.
 - The transaction lookup is synchronous because the local data source is an in-process JPA database.
 - Reward points are whole numbers and fractional calculated points are rounded down.
 
-Screenshots for the running application, build, and API success/error responses are in `docs/`.
-The `build-success.jpg` screenshot includes the test execution summary and build result.
+Screenshots for the running application, Java/Maven versions, build, and API
+success/error responses are stored in the `docs/` folder. The repo does not use
+`screenshots/`; all screenshots were normalized to `docs/` to match the project
+contract.
+
+The `build-success.png` screenshot includes the test execution summary and build
+result. The 405 response screenshot should be saved as
+`docs/api-error-method-not-allowed.png`.

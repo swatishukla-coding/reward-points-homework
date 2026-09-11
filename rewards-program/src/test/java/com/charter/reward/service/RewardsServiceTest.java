@@ -6,6 +6,7 @@ import com.charter.reward.exception.CustomerNotFoundException;
 import com.charter.reward.model.Customer;
 import com.charter.reward.model.Transaction;
 import com.charter.reward.repository.CustomerRepository;
+import com.charter.reward.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -130,5 +131,20 @@ class RewardsServiceTest {
         assertEquals(2, responses.size());
         assertNotNull(responses.get(0));
         assertNotNull(responses.get(1));
+    }
+
+    @Test
+    void asyncTransactionLookupReturnsCompletedFuture() {
+        TransactionRepository transactionRepository = org.mockito.Mockito.mock(TransactionRepository.class);
+        TransactionDataService asyncDataService = new TransactionDataService(transactionRepository);
+
+        when(transactionRepository.findByCustomerId("C001"))
+            .thenReturn(Collections.singletonList(
+                    new Transaction("T1", "C001", LocalDate.of(2026, 7, 10), new BigDecimal("60.00"))));
+
+        java.util.concurrent.CompletableFuture<List<Transaction>> future =
+                asyncDataService.fetchTransactionsForCustomerAsync("C001");
+
+        assertEquals(1, future.join().size());
     }
 }

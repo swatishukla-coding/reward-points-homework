@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Retrieves customer transactions using the JPA repository.
@@ -31,12 +32,21 @@ public class TransactionDataService {
      * Retrieves all transactions for the specified customer.
      *
      * @param customerId unique customer identifier
-         * @return the customer's transactions
+     * @return the customer's transactions
      */
-        public List<Transaction> fetchTransactionsForCustomer(String customerId) {
-            log.info("Fetching transactions for customer {}", customerId);
-            List<Transaction> transactions = transactionRepository.findByCustomerId(customerId);
-            log.info("Retrieved {} transaction(s) for customer {}", transactions.size(), customerId);
-            return transactions;
+    public List<Transaction> fetchTransactionsForCustomer(String customerId) {
+        log.info("Fetching transactions for customer {}", customerId);
+        List<Transaction> transactions = transactionRepository.findByCustomerId(customerId);
+        log.info("Retrieved {} transaction(s) for customer {}", transactions.size(), customerId);
+        return transactions;
+    }
+
+    /**
+     * Simple async simulation for the transaction lookup contract.
+     * The method intentionally completes immediately to keep the behavior predictable
+     * while still demonstrating CompletableFuture-based async usage.
+     */
+    public CompletableFuture<List<Transaction>> fetchTransactionsForCustomerAsync(String customerId) {
+        return CompletableFuture.completedFuture(fetchTransactionsForCustomer(customerId));
     }
 }
