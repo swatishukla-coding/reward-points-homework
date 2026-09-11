@@ -1,8 +1,19 @@
 package com.retailer.rewards.model;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+@Entity
+@Table(name = "customers")
 public class Customer {
 
+    @Id
+    @Column(name = "customer_id")
     private String customerId;
+
+    @Column(name = "name", nullable = false)
     private String name;
 
     public Customer() {

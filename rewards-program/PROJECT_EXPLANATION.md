@@ -1,223 +1,98 @@
 # Retailer Rewards Program: Complete Explanation
 
-Ye document project ko startup se lekar API response tak Hinglish mein explain karta hai.
+This project calculates customer reward points from purchase transactions and
+returns monthly breakdown plus total points over a trailing time window.
 
-## 1. Project ka purpose
+## 1. Project purpose
 
-Ye Spring Boot REST API customer ke purchase transactions ke basis par reward points calculate karti hai.
+The API applies the following rules:
 
-Reward formula:
+- $0 to $50 earns 0 points
+- $50.01 to $100 earns 1 point per dollar above $50
+- over $100 earns 50 points for the first $100 plus 2 points for each dollar above $100
 
-- Pehle `$50` par `0` points.
-- `$50` se `$100` tak har dollar par `1` point.
-- `$100` se upar har dollar par `2` points.
+Example: a $120 purchase = 90 points.
 
-Example: `$120` purchase:
+## 2. Spring Boot app startup
 
-```text
-First $50       = 0 points
-Next $50        = 50 points
-Remaining $20   = 40 points
-Total           = 90 points
-```
+The app starts from the main class in:
 
-## 2. Application start kaise hoti hai
+- `src/main/java/com/retailer/rewards/RewardsApplication.java`
 
-File: `src/main/java/com/retailer/rewards/RewardsApplication.java`
+This is a standard Spring Boot application that bootstraps the web server,
+component scanning, and configuration.
 
-```java
-@SpringBootApplication
-public class RewardsApplication {
-```
+## 3. Data layer
 
-`@SpringBootApplication` Spring Boot ko configuration, component scanning aur auto-configuration enable karne bolta hai. Isse Spring `@Controller`, `@Service`, `@Repository` aur `@Configuration` classes ko automatically find karta hai.
+The project uses:
 
-```java
-public static void main(String[] args) {
-    SpringApplication.run(RewardsApplication.class, args);
-}
-```
+- `CustomerRepository`
+- `TransactionRepository`
+- `Customer` entity
+- `Transaction` entity
+- `DataInitializer`
 
-Ye Java ka entry point hai. `SpringApplication.run` Spring container aur embedded web server start karta hai.
+Data is seeded into an in-memory H2 database at startup so the app behaves like a
+real database-backed service.
 
-## 3. Maven configuration
+## 4. Async behavior
 
-File: `pom.xml`
+The async layer is still used to simulate a slow external data fetch:
 
-- Spring Boot version `2.7.18` use ho raha hai.
-- Java version `8` hai.
-- `spring-boot-starter-web` REST API aur embedded Tomcat provide karta hai.
-- `spring-boot-starter-validation` request validation ke liye hai.
-- `jackson-datatype-jsr310` `LocalDate` ko JSON mein convert karta hai.
-- `spring-boot-starter-test` JUnit, Mockito aur MockMvc provide karta hai.
-- `spring-boot-maven-plugin` application ko run aur package karne mein help karta hai.
+- `TransactionDataService`
+- `AsyncConfig`
 
-Application run karne ke liye:
+This keeps the service logic close to a real-world architecture while still using
+local in-memory data.
+
+## 5. Service flow
+
+The main service flow is:
+
+- `RewardsController` receives the request
+- `RewardsService` validates the customer and fetches transactions
+- requested transaction window is filtered by `months` and `asOfDate`
+- transactions are grouped by month
+- `RewardsCalculationService` computes points per transaction
+- a response object is returned with total and monthly details
+
+## 6. Validation and error handling
+
+`GlobalExceptionHandler` returns HTTP responses for:
+
+- 404 when the customer is not found
+- 400 for invalid request values
+- 503 for transaction fetch failures
+- 500 for unexpected server errors
+
+## 7. Testing
+
+The test suite covers:
+
+- reward formula boundaries
+- month grouping logic
+- unknown customer handling
+- controller response status and JSON shape
+
+## 8. Running and verifying
 
 ```bash
 mvn spring-boot:run
 ```
 
-Tests run karne ke liye:
+Then test:
 
 ```bash
-mvn test
+curl "http://localhost:8080/api/v1/rewards/customers/C001?months=3&asOfDate=2026-09-08"
 ```
 
-## 4. Async configuration
+The app has been verified locally with Maven:
 
-File: `src/main/java/com/retailer/rewards/config/AsyncConfig.java`
+- 23 tests run
+- 0 failures
+- 0 errors
+- BUILD SUCCESS
 
-```java
-@Configuration
-@EnableAsync
-public class AsyncConfig {
-```
-
-- `@Configuration` batata hai ki class Spring configuration provide karti hai.
-- `@EnableAsync` `@Async` methods ko background threads par run karne enable karta hai.
-
-```java
-@Bean(name = "rewardsTaskExecutor")
-public TaskExecutor rewardsTaskExecutor() {
-```
-
-Ye `rewardsTaskExecutor` naam ka thread pool Spring mein register karta hai.
-
-```java
-executor.setCorePoolSize(4);
-executor.setMaxPoolSize(8);
-executor.setQueueCapacity(50);
-```
-
-- Normally 4 threads available rahenge.
-- Load badhne par maximum 8 threads use ho sakte hain.
-- Busy hone par 50 tasks queue mein wait kar sakte hain.
-
-```java
-executor.setThreadNamePrefix("rewards-async-");
-```
-
-Async threads ke readable names banata hai, jaise `rewards-async-1`.
-
-## 5. Customer aur transaction models
-
-Files:
-
-- `src/main/java/com/retailer/rewards/model/Customer.java`
-- `src/main/java/com/retailer/rewards/model/Transaction.java`
-
-### Customer
-
-Customer mein do fields hain:
-
-```java
-private String customerId;
-private String name;
-```
-
-Example:
-
-```text
-customerId = C001
-name       = Alice Johnson
-```
-
-Empty constructor Jackson ke liye required hai, taaki JSON ko Java object mein convert kiya ja sake. Parameterized constructor manually customer create karne ke liye hai. Getters values read karte hain aur setters values update karte hain.
-
-### Transaction
-
-Transaction mein ye fields hain:
-
-```java
-private String transactionId;
-private String customerId;
-private LocalDate transactionDate;
-private BigDecimal amount;
-```
-
-- `transactionId`: purchase ki unique ID.
-- `customerId`: kis customer ne purchase ki.
-- `transactionDate`: purchase date.
-- `amount`: purchase amount.
-
-Amount ke liye `BigDecimal` use hua hai, kyunki currency ke liye `double` floating-point rounding problems create kar sakta hai.
-
-```java
-@JsonFormat(pattern = "yyyy-MM-dd")
-```
-
-Date JSON mein `2026-06-05` format mein read/write hoti hai.
-
-`equals` aur `hashCode` transaction ID par based hain. Iska matlab same transaction ID wale transactions equal maane jayenge. `toString` logging aur debugging ke liye readable text deta hai.
-
-## 6. Seed data aur in-memory repository
-
-Files:
-
-- `src/main/resources/data/seed-data.json`
-- `src/main/java/com/retailer/rewards/repository/SeedData.java`
-- `src/main/java/com/retailer/rewards/repository/TransactionStore.java`
-
-### Seed JSON
-
-Seed file mein 3 customers hain:
-
-```text
-C001 -> Alice Johnson
-C002 -> Brian Smith
-C003 -> Carla Diaz
-```
-
-Transactions mein transaction ID, customer ID, date aur amount diya gaya hai.
-
-### SeedData
-
-`SeedData` class JSON ke structure ko represent karti hai. Ismein customers ki list aur transactions ki list hoti hai. Getters aur setters Jackson ko JSON fields fill karne dete hain.
-
-### TransactionStore
-
-```java
-@Repository
-public class TransactionStore {
-```
-
-`@Repository` se Spring is class ka object automatically create karta hai. Ye real database ka in-memory replacement hai.
-
-```java
-private Map<String, Customer> customersById;
-private Map<String, List<Transaction>> transactionsByCustomerId;
-```
-
-Do maps maintain kiye jaate hain:
-
-1. Customer ID se customer.
-2. Customer ID se uski transactions.
-
-```java
-@PostConstruct
-void loadSeedData()
-```
-
-Spring application start hone ke baad ye method ek baar automatically run hota hai.
-
-```java
-ClassPathResource(SEED_FILE).getInputStream()
-```
-
-`data/seed-data.json` resources folder se read hoti hai.
-
-```java
-objectMapper.readValue(inputStream, SeedData.class)
-```
-
-JSON ko `SeedData` Java object mein convert karta hai.
-
-Customer loop har customer ko ID-based map mein store karta hai. Transaction loop transactions ko customer ID ke basis par group karti hai.
-
-Public methods:
-
-- `findCustomerById`: ek customer ko `Optional` ke through return karta hai.
 - `findAllCustomers`: sab customers ki list return karta hai.
 - `findTransactionsByCustomerId`: kisi customer ki transactions return karta hai.
 
