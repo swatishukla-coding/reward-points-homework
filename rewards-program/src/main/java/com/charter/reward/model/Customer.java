@@ -1,5 +1,10 @@
 package com.charter.reward.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -7,6 +12,10 @@ import javax.persistence.Table;
 
 @Entity
 @Table(name = "customers")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Customer {
 
     @Id
@@ -15,29 +24,4 @@ public class Customer {
 
     @Column(name = "name", nullable = false)
     private String name;
-
-    public Customer() {
-        // required for Jackson deserialization
-    }
-
-    public Customer(String customerId, String name) {
-        this.customerId = customerId;
-        this.name = name;
-    }
-
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
 }

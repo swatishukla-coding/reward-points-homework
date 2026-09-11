@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -96,5 +97,37 @@ class RewardsServiceTest {
 
         assertEquals(0, response.getTotalPointsEarned());
         assertEquals(0, response.getMonthlyBreakdown().size());
+    }
+
+    @Test
+    void throwsForBlankCustomerId() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> rewardsService.getRewardsForCustomer("   ", 3, AS_OF));
+        assertEquals("customerId must not be blank", ex.getMessage());
+    }
+
+    @Test
+    void throwsForMissingAsOfDate() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> rewardsService.getRewardsForCustomer("C001", 3, null));
+        assertEquals("asOfDate must not be null", ex.getMessage());
+    }
+
+    @Test
+    void allCustomersReturnsResponsesForEachCustomer() {
+        when(transactionStore.findAllCustomers()).thenReturn(Arrays.asList(
+                new Customer("C001", "Alice Johnson"),
+                new Customer("C002", "Brian Smith")
+        ));
+        when(transactionStore.findCustomerById("C001")).thenReturn(Optional.of(new Customer("C001", "Alice Johnson")));
+        when(transactionStore.findCustomerById("C002")).thenReturn(Optional.of(new Customer("C002", "Brian Smith")));
+        when(transactionDataService.fetchTransactionsForCustomer("C001")).thenReturn(Collections.emptyList());
+        when(transactionDataService.fetchTransactionsForCustomer("C002")).thenReturn(Collections.emptyList());
+
+        List<CustomerRewardsResponse> responses = rewardsService.getRewardsForAllCustomers(3, AS_OF);
+
+        assertEquals(2, responses.size());
+        assertNotNull(responses.get(0));
+        assertNotNull(responses.get(1));
     }
 }

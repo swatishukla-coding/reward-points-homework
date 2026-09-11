@@ -1,10 +1,21 @@
 package com.charter.reward.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/**
+ * Per-transaction reward detail.
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class TransactionDetailDto {
 
     private String transactionId;
@@ -14,27 +25,4 @@ public class TransactionDetailDto {
 
     private BigDecimal amount;
     private int pointsEarned;
-
-    public TransactionDetailDto(String transactionId, LocalDate transactionDate, BigDecimal amount, int pointsEarned) {
-        this.transactionId = transactionId;
-        this.transactionDate = transactionDate;
-        this.amount = amount;
-        this.pointsEarned = pointsEarned;
-    }
-
-    public String getTransactionId() {
-        return transactionId;
-    }
-
-    public LocalDate getTransactionDate() {
-        return transactionDate;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public int getPointsEarned() {
-        return pointsEarned;
-    }
 }

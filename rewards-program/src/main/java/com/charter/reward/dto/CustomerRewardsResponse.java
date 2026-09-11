@@ -1,10 +1,21 @@
 package com.charter.reward.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Response payload for customer reward summary.
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class CustomerRewardsResponse {
 
     private String customerId;
@@ -18,39 +29,4 @@ public class CustomerRewardsResponse {
 
     private int totalPointsEarned;
     private List<MonthlyRewardDto> monthlyBreakdown;
-
-    public CustomerRewardsResponse(String customerId, String customerName, LocalDate periodStart,
-                                    LocalDate periodEnd, int totalPointsEarned,
-                                    List<MonthlyRewardDto> monthlyBreakdown) {
-        this.customerId = customerId;
-        this.customerName = customerName;
-        this.periodStart = periodStart;
-        this.periodEnd = periodEnd;
-        this.totalPointsEarned = totalPointsEarned;
-        this.monthlyBreakdown = monthlyBreakdown;
-    }
-
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public LocalDate getPeriodStart() {
-        return periodStart;
-    }
-
-    public LocalDate getPeriodEnd() {
-        return periodEnd;
-    }
-
-    public int getTotalPointsEarned() {
-        return totalPointsEarned;
-    }
-
-    public List<MonthlyRewardDto> getMonthlyBreakdown() {
-        return monthlyBreakdown;
-    }
 }

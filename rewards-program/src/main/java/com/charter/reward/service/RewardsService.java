@@ -19,11 +19,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Objects;
 
+/**
+ * Business service for customer reward calculations and date-window aggregation.
+ */
 @Service
 public class RewardsService {
 
@@ -43,6 +43,10 @@ public class RewardsService {
     }
 
     public CustomerRewardsResponse getRewardsForCustomer(String customerId, int months, LocalDate asOfDate) {
+        validateCustomerId(customerId);
+        validateMonths(months);
+        validateAsOfDate(asOfDate);
+
         Customer customer = transactionStore.findCustomerById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId));
 
@@ -64,6 +68,9 @@ public class RewardsService {
     }
 
     public List<CustomerRewardsResponse> getRewardsForAllCustomers(int months, LocalDate asOfDate) {
+        validateMonths(months);
+        validateAsOfDate(asOfDate);
+
         List<CustomerRewardsResponse> rewards = new ArrayList<>();
         for (Customer customer : transactionStore.findAllCustomers()) {
             rewards.add(getRewardsForCustomer(customer.getCustomerId(), months, asOfDate));
@@ -115,16 +122,29 @@ public class RewardsService {
     }
 
     private List<Transaction> fetchTransactions(String customerId) {
-        CompletableFuture<List<Transaction>> future =
-            transactionDataService.fetchTransactionsForCustomer(customerId);
         try {
-            return future.get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new TransactionFetchException(customerId, e);
-        } catch (ExecutionException | TimeoutException e) {
+            return transactionDataService.fetchTransactionsForCustomer(customerId);
+        } catch (RuntimeException e) {
             log.error("Failed to fetch transactions for customer {}", customerId, e);
             throw new TransactionFetchException(customerId, e);
+        }
+    }
+
+    private void validateCustomerId(String customerId) {
+        if (customerId == null || customerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("customerId must not be blank");
+        }
+    }
+
+    private void validateMonths(int months) {
+        if (months <= 0) {
+            throw new IllegalArgumentException("months must be greater than 0");
+        }
+    }
+
+    private void validateAsOfDate(LocalDate asOfDate) {
+        if (asOfDate == null) {
+            throw new IllegalArgumentException("asOfDate must not be null");
         }
     }
 }
