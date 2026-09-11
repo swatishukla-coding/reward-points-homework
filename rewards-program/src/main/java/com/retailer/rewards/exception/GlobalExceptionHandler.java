@@ -29,7 +29,8 @@ public class GlobalExceptionHandler {
             ConstraintViolationException.class,
             MethodArgumentNotValidException.class,
             MethodArgumentTypeMismatchException.class,
-            MissingServletRequestParameterException.class
+            MissingServletRequestParameterException.class,
+            IllegalArgumentException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, WebRequest request) {
         log.warn("Invalid request: {}", ex.getMessage());

@@ -56,7 +56,7 @@ class RewardsCalculationServiceTest {
         assertEquals(49, service.calculatePoints(new BigDecimal("99.99")));
     }
 
-    @ParameterizedTest(name = "${'$'}{0} earns {1} points")
+    @ParameterizedTest(name = "{0} earns {1} points")
     @CsvSource({
             "0, 0",
             "50, 0",

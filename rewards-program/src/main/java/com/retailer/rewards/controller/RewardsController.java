@@ -1,24 +1,22 @@
 package com.retailer.rewards.controller;
 
 import com.retailer.rewards.dto.CustomerRewardsResponse;
+import com.retailer.rewards.exception.CustomerNotFoundException;
 import com.retailer.rewards.service.RewardsService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/rewards")
-@Validated
 public class RewardsController {
 
     private final RewardsService rewardsService;
@@ -27,38 +25,31 @@ public class RewardsController {
         this.rewardsService = rewardsService;
     }
 
-    /**
-     * Reward points for one customer, broken down by month.
-     *
-     * @param customerId the customer to look up
-     * @param months     size of the trailing window, in months (default 3 per the take-home spec,
-     *                   but exposed as a parameter so the API isn't hard-coded to a fixed period)
-     * @param asOfDate   optional reference date the window is measured back from; defaults to today,
-     *                   useful for reproducible testing against fixed data
-     */
     @GetMapping("/customers/{customerId}")
-    public ResponseEntity<CustomerRewardsResponse> getCustomerRewards(
+    public ResponseEntity<CustomerRewardsResponse> getRewardsForCustomer(
             @PathVariable String customerId,
-            @RequestParam(defaultValue = "3") @Min(1) @Max(24) int months,
+            @RequestParam(defaultValue = "3") int months,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
 
-        return ResponseEntity.ok(rewardsService.getRewardsForCustomer(
-            customerId, months, getEffectiveDate(asOfDate)));
+        if (months <= 0) {
+            throw new IllegalArgumentException("months must be greater than 0");
+        }
+
+        CustomerRewardsResponse response = rewardsService.getRewardsForCustomer(customerId, months,
+                asOfDate != null ? asOfDate : LocalDate.now());
+        return ResponseEntity.ok(response);
     }
 
-    /**
-     * Reward points for every known customer, same window semantics as above.
-     */
     @GetMapping("/customers")
-    public ResponseEntity<List<CustomerRewardsResponse>> getAllCustomerRewards(
-            @RequestParam(defaultValue = "3") @Min(1) @Max(24) int months,
+    public ResponseEntity<List<CustomerRewardsResponse>> getRewardsForAllCustomers(
+            @RequestParam(defaultValue = "3") int months,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
 
-        return ResponseEntity.ok(rewardsService.getRewardsForAllCustomers(
-                months, getEffectiveDate(asOfDate)));
-    }
+        if (months <= 0) {
+            throw new IllegalArgumentException("months must be greater than 0");
+        }
 
-    private LocalDate getEffectiveDate(LocalDate asOfDate) {
-        return asOfDate == null ? LocalDate.now() : asOfDate;
+        return ResponseEntity.ok(rewardsService.getRewardsForAllCustomers(months,
+                asOfDate != null ? asOfDate : LocalDate.now()));
     }
 }

@@ -17,20 +17,20 @@ public class RewardsCalculationService {
             return 0;
         }
 
-        if (amount.compareTo(UPPER_THRESHOLD) > 0) {
-            BigDecimal points = amount.subtract(UPPER_THRESHOLD).multiply(TWO)
-                    .add(UPPER_THRESHOLD.subtract(LOWER_THRESHOLD));
-            return wholePoints(points);
+        if (amount.compareTo(LOWER_THRESHOLD) <= 0) {
+            return 0;
         }
 
-        if (amount.compareTo(LOWER_THRESHOLD) > 0) {
-            return wholePoints(amount.subtract(LOWER_THRESHOLD));
+        if (amount.compareTo(UPPER_THRESHOLD) <= 0) {
+            return floor(amount.subtract(LOWER_THRESHOLD));
         }
 
-        return 0;
+        BigDecimal overHundred = amount.subtract(UPPER_THRESHOLD);
+        BigDecimal points = BigDecimal.valueOf(50).add(overHundred.multiply(TWO));
+        return floor(points);
     }
 
-    private int wholePoints(BigDecimal points) {
-        return points.setScale(0, RoundingMode.DOWN).intValue();
+    private int floor(BigDecimal value) {
+        return value.setScale(0, RoundingMode.DOWN).intValue();
     }
 }
