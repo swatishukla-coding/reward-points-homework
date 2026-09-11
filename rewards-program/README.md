@@ -17,13 +17,21 @@ Example: a $120 purchase = 90 points.
 
 This project uses:
 - Spring Boot 2.7.18
-- Java 8
+- Java 8 source and bytecode compatibility
+- JDK 21 supported for local build and runtime
 - Maven
 - Spring Web
 - Spring Validation
 - Spring Data JPA
 - H2 in-memory database
 - JUnit 5 + Mockito
+
+## Java version note
+
+The Maven configuration targets Java 8 for compatibility with older Java
+environments. The application can also be compiled and run with JDK 21, which
+is the runtime used for local development. Using JDK 21 does not change the
+application's Java 8-compatible source and bytecode target.
 
 ## API endpoints
 
@@ -94,6 +102,16 @@ Example `404` response:
 
 ## Running locally
 
+Use JDK 21 or another supported JDK, then verify the active versions:
+
+```bash
+java -version
+mvn -version
+```
+
+The Maven output may show JDK 21 as the runtime while the project compiler
+settings still target Java 8.
+
 ```bash
 mvn spring-boot:run
 ```
@@ -111,7 +129,7 @@ mvn test
 ```
 
 Current verification status:
-- Run `mvn test` after Java and Maven are available in the environment.
+- Run `mvn test` with the configured JDK to verify the current checkout.
 - The test suite includes service, controller, and reward-calculation coverage.
 
 ## Data setup

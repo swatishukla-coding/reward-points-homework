@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -73,5 +74,22 @@ class RewardsControllerTest {
 
         mockMvc.perform(get("/api/v1/rewards/customers/C001").param("months", "0"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returns400WithNormalizedMessageForInvalidDate() throws Exception {
+        mockMvc.perform(get("/api/v1/rewards/customers/C001")
+                        .param("asOfDate", "2026/09/08"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for parameter 'asOfDate'"));
+    }
+
+    @Test
+    void returns405ForUnsupportedMethod() throws Exception {
+        mockMvc.perform(post("/api/v1/rewards/customers/C001"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.message")
+                        .value("HTTP method is not supported for this endpoint"));
     }
 }
