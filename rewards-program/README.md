@@ -18,7 +18,7 @@ Example: a $120 purchase = 90 points.
 This project uses:
 - Spring Boot 2.7.18
 - Java 8 source and bytecode compatibility
-- JDK 21 supported for local build and runtime
+- JDK 21 as the local verification environment
 - Maven
 - Spring Web
 - Spring Validation
@@ -29,9 +29,9 @@ This project uses:
 ## Java version note
 
 The Maven configuration targets Java 8 for compatibility with older Java
-environments. The application can also be compiled and run with JDK 21, which
-is the runtime used for local development. Using JDK 21 does not change the
-application's Java 8-compatible source and bytecode target.
+environments. Local verification was run with JDK 21. Using JDK 21 to execute
+Maven does not change the project's Java 8-compatible source and bytecode
+target.
 
 ## API endpoints
 
@@ -59,9 +59,9 @@ Sample result:
   "periodEnd": "2026-09-08",
   "totalPointsEarned": 484,
   "monthlyBreakdown": [
-    {"month":"2026-06","pointsEarned":25,"transactions":[...]},
-    {"month":"2026-07","pointsEarned":299,"transactions":[...]},
-    {"month":"2026-08","pointsEarned":160,"transactions":[...]}
+    {"year":2026,"month":"June","points":25,"transactions":[...]},
+    {"year":2026,"month":"July","points":299,"transactions":[...]},
+    {"year":2026,"month":"August","points":160,"transactions":[...]}
   ]
 }
 ```
@@ -102,15 +102,15 @@ Example `404` response:
 
 ## Running locally
 
-Use JDK 21 or another supported JDK, then verify the active versions:
+Use a supported JDK, then verify the active versions:
 
 ```bash
 java -version
 mvn -version
 ```
 
-The Maven output may show JDK 21 as the runtime while the project compiler
-settings still target Java 8.
+The Maven output may show JDK 21 as the verification runtime while the project
+compiler settings still target Java 8.
 
 ```bash
 mvn spring-boot:run
@@ -131,6 +131,8 @@ mvn test
 Current verification status:
 - Run `mvn test` with the configured JDK to verify the current checkout.
 - The test suite includes service, controller, and reward-calculation coverage.
+- Build logs are generated locally and ignored by git; they are not part of the
+  committed source.
 
 ## Data setup
 
@@ -147,8 +149,11 @@ database is in-memory and is recreated when the application restarts.
 ## Limitations
 
 - H2 is an in-memory database, so data is not persistent between restarts.
-- The transaction lookup is synchronous because the local data source is an in-process JPA database.
-- Reward points are whole numbers and fractional calculated points are rounded down.
+- Transaction data comes from a local in-process JPA repository; an executor-backed
+  `CompletableFuture` lookup is included to demonstrate the asynchronous API-call
+  contract without relying on an external service.
+- Reward points are whole numbers; cents are included in the calculation, then any
+  fractional reward points are rounded down.
 
 Screenshots for the running application, Java/Maven versions, build, and API
 success/error responses are stored in the `docs/` folder. The repo does not use

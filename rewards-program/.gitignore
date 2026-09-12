@@ -1,6 +1,8 @@
 target/
 *.class
 *.log
+error.txt
+test-output.txt
 .idea/
 *.iml
 .vscode/

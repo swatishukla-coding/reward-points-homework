@@ -4,10 +4,12 @@ import com.charter.reward.model.Transaction;
 import com.charter.reward.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Retrieves customer transactions using the JPA repository.
@@ -18,14 +20,18 @@ public class TransactionDataService {
     private static final Logger log = LoggerFactory.getLogger(TransactionDataService.class);
 
     private final TransactionRepository transactionRepository;
+    private final ExecutorService executorService;
 
     /**
      * Creates the transaction data service with a transaction repository dependency.
      *
-    * @param transactionRepository database source for customer transactions
+     * @param transactionRepository database source for customer transactions
+     * @param executorService executor used for asynchronous transaction lookups
      */
-    public TransactionDataService(TransactionRepository transactionRepository) {
+    public TransactionDataService(TransactionRepository transactionRepository,
+                                  @Qualifier("rewardAsyncExecutor") ExecutorService executorService) {
         this.transactionRepository = transactionRepository;
+        this.executorService = executorService;
     }
 
     /**
@@ -42,11 +48,12 @@ public class TransactionDataService {
     }
 
     /**
-     * Simple async simulation for the transaction lookup contract.
-     * The method intentionally completes immediately to keep the behavior predictable
-     * while still demonstrating CompletableFuture-based async usage.
+     * Fetches customer transactions asynchronously using the configured executor.
+     *
+     * @param customerId unique customer identifier
+     * @return future containing the customer's transactions
      */
     public CompletableFuture<List<Transaction>> fetchTransactionsForCustomerAsync(String customerId) {
-        return CompletableFuture.completedFuture(fetchTransactionsForCustomer(customerId));
+        return CompletableFuture.supplyAsync(() -> fetchTransactionsForCustomer(customerId), executorService);
     }
 }

@@ -13,9 +13,19 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Seeds the in-memory database with sample customers and transactions.
+ */
 @Configuration
 public class DataInitializer {
 
+    /**
+     * Creates a startup runner that loads demo data when the database is empty.
+     *
+     * @param customerRepository repository used to persist customers
+     * @param transactionRepository repository used to persist transactions
+     * @return command-line runner that initializes sample data
+     */
     @Bean
     CommandLineRunner initData(CustomerRepository customerRepository,
                                TransactionRepository transactionRepository) {

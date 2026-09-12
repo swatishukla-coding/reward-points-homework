@@ -14,12 +14,17 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String REQUEST_VALIDATION_FAILED = "Request validation failed";
 
     /**
      * Converts a missing customer error into a structured 404 response.
@@ -92,6 +97,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Converts wrapped asynchronous failures into the same response as their root cause.
+     *
+     * @param ex wrapper exception raised by asynchronous execution
+     * @param request current web request metadata
+     * @return response payload matching the wrapped application exception
+     */
+    @ExceptionHandler({CompletionException.class, ExecutionException.class})
+    public ResponseEntity<ErrorResponse> handleAsyncException(Exception ex, WebRequest request) {
+        Throwable cause = unwrap(ex);
+        if (cause instanceof CustomerNotFoundException) {
+            return handleCustomerNotFound((CustomerNotFoundException) cause, request);
+        }
+        if (cause instanceof ValidationException) {
+            return handleBadRequest((ValidationException) cause, request);
+        }
+        if (cause instanceof ConstraintViolationException) {
+            return handleBadRequest((ConstraintViolationException) cause, request);
+        }
+        if (cause instanceof TransactionFetchException) {
+            return handleTransactionFetch((TransactionFetchException) cause, request);
+        }
+        log.error("Unexpected async error handling request", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+    }
+
+    /**
      * Converts unexpected application failures into a structured 500 response.
      *
      * @param ex unexpected exception
@@ -106,7 +137,7 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, WebRequest request) {
         String path = request.getDescription(false).replace("uri=", "");
-        ErrorResponse body = new ErrorResponse(status.value(), status.getReasonPhrase(), message, path);
+        ErrorResponse body = new ErrorResponse(status, message, path);
         return ResponseEntity.status(status).body(body);
     }
 
@@ -119,12 +150,36 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException missing = (MissingServletRequestParameterException) ex;
             return "Required parameter '" + missing.getParameterName() + "' is missing";
         }
-        if (ex instanceof ConstraintViolationException || ex instanceof MethodArgumentNotValidException) {
-            return "Request validation failed";
+        if (ex instanceof ConstraintViolationException) {
+            ConstraintViolationException constraintViolation = (ConstraintViolationException) ex;
+            String message = constraintViolation.getConstraintViolations().stream()
+                    .map(ConstraintViolation::getMessage)
+                    .filter(value -> value != null && !value.trim().isEmpty())
+                    .collect(Collectors.joining("; "));
+            return normalizeValidationMessage(message);
         }
-        if (ex instanceof ValidationException && ex.getMessage() != null) {
-            return ex.getMessage();
+        if (ex instanceof MethodArgumentNotValidException) {
+            return REQUEST_VALIDATION_FAILED;
         }
-        return "Request validation failed";
+        if (ex instanceof ValidationException) {
+            return normalizeValidationMessage(ex.getMessage());
+        }
+        return REQUEST_VALIDATION_FAILED;
+    }
+
+    private String normalizeValidationMessage(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return REQUEST_VALIDATION_FAILED;
+        }
+        return message;
+    }
+
+    private Throwable unwrap(Throwable throwable) {
+        Throwable cause = throwable.getCause();
+        while ((throwable instanceof CompletionException || throwable instanceof ExecutionException) && cause != null) {
+            throwable = cause;
+            cause = throwable.getCause();
+        }
+        return throwable;
     }
 }

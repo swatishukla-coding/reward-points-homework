@@ -10,6 +10,9 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+/**
+ * Customer enrolled in the retailer rewards program.
+ */
 @Entity
 @Table(name = "customers")
 @Getter

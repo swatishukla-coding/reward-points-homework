@@ -18,8 +18,10 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.time.format.TextStyle;
 
 /**
  * Business service for customer reward calculations and date-window aggregation.
@@ -33,9 +35,9 @@ public class RewardsService {
     private final RewardsCalculationService calculationService;
 
     /**
-    * Creates the service with the customer repository and reward calculation dependencies.
+      * Creates the service with the customer repository and reward calculation dependencies.
      *
-        * @param customerRepository source of customer data
+      * @param customerRepository source of customer data
      * @param transactionDataService access wrapper for customer transactions
      * @param calculationService reward calculation logic used for each transaction
      */
@@ -56,10 +58,25 @@ public class RewardsService {
      * @return reward summary for the requested customer
      */
     public CustomerRewardsResponse getRewardsForCustomer(String customerId, int months, LocalDate asOfDate) {
+        return getRewardsForCustomer(customerId, months, asOfDate, Locale.getDefault());
+    }
+
+    /**
+     * Calculates the reward summary for a single customer using localized month names.
+     *
+     * @param customerId unique customer identifier
+     * @param months number of trailing months to include in the summary
+     * @param asOfDate end date of the calculation window
+     * @param locale locale used for month display names
+     * @return reward summary for the requested customer
+     */
+    public CustomerRewardsResponse getRewardsForCustomer(String customerId, int months, LocalDate asOfDate,
+                                                         Locale locale) {
         validateCustomerId(customerId);
         validateMonths(months);
         validateAsOfDate(asOfDate);
 
+        log.debug("Calculating rewards for customerId={}, months={}, asOfDate={}", customerId, months, asOfDate);
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId));
 
@@ -71,11 +88,13 @@ public class RewardsService {
         int totalPoints = 0;
 
         for (YearMonth month : transactionsByMonth.keySet()) {
-            MonthlyRewardDto monthlyReward = createMonthlyReward(month, transactionsByMonth.get(month));
+            MonthlyRewardDto monthlyReward = createMonthlyReward(month, transactionsByMonth.get(month), locale);
             monthlyBreakdown.add(monthlyReward);
-            totalPoints += monthlyReward.getPointsEarned();
+            totalPoints += monthlyReward.getPoints();
         }
 
+        log.info("Calculated rewards for customerId={} from {} to {}: totalPoints={}, monthCount={}",
+            customerId, periodStart, asOfDate, totalPoints, monthlyBreakdown.size());
         return new CustomerRewardsResponse(
                 customer.getCustomerId(), customer.getName(), periodStart, asOfDate, totalPoints, monthlyBreakdown);
     }
@@ -88,13 +107,27 @@ public class RewardsService {
      * @return reward summaries for each stored customer
      */
     public List<CustomerRewardsResponse> getRewardsForAllCustomers(int months, LocalDate asOfDate) {
+        return getRewardsForAllCustomers(months, asOfDate, Locale.getDefault());
+    }
+
+    /**
+     * Calculates reward summaries for every customer using localized month names.
+     *
+     * @param months number of trailing months to include in each summary
+     * @param asOfDate end date of the calculation window
+     * @param locale locale used for month display names
+     * @return reward summaries for each stored customer
+     */
+    public List<CustomerRewardsResponse> getRewardsForAllCustomers(int months, LocalDate asOfDate, Locale locale) {
         validateMonths(months);
         validateAsOfDate(asOfDate);
 
+        log.debug("Calculating rewards for all customers, months={}, asOfDate={}", months, asOfDate);
         List<CustomerRewardsResponse> rewards = new ArrayList<>();
         for (Customer customer : customerRepository.findAll()) {
-            rewards.add(getRewardsForCustomer(customer.getCustomerId(), months, asOfDate));
+            rewards.add(getRewardsForCustomer(customer.getCustomerId(), months, asOfDate, locale));
         }
+        log.info("Calculated rewards for {} customer(s)", rewards.size());
         return rewards;
     }
 
@@ -124,7 +157,7 @@ public class RewardsService {
         return transactionsByMonth;
     }
 
-    private MonthlyRewardDto createMonthlyReward(YearMonth month, List<Transaction> transactions) {
+    private MonthlyRewardDto createMonthlyReward(YearMonth month, List<Transaction> transactions, Locale locale) {
         List<TransactionDetailDto> details = new ArrayList<>();
         int points = 0;
 
@@ -138,7 +171,12 @@ public class RewardsService {
                     transactionPoints));
         }
 
-        return new MonthlyRewardDto(month.toString(), points, details);
+        return new MonthlyRewardDto(
+            month.getYear(),
+            month.getMonthValue(),
+            month.getMonth().getDisplayName(TextStyle.FULL, locale),
+            points,
+            details);
     }
 
     private List<Transaction> fetchTransactions(String customerId) {
@@ -152,18 +190,25 @@ public class RewardsService {
 
     private void validateCustomerId(String customerId) {
         if (customerId == null || customerId.trim().isEmpty()) {
+            log.warn("Invalid rewards request: blank customerId");
             throw new ValidationException("customerId must not be blank");
+        }
+        if (!customerId.matches("^[A-Za-z0-9_-]+$")) {
+            log.warn("Invalid rewards request: malformed customerId={}", customerId);
+            throw new ValidationException("customerId must contain only letters, numbers, hyphen, or underscore");
         }
     }
 
     private void validateMonths(int months) {
         if (months <= 0) {
+            log.warn("Invalid rewards request: months={}", months);
             throw new ValidationException("months must be greater than 0");
         }
     }
 
     private void validateAsOfDate(LocalDate asOfDate) {
         if (asOfDate == null) {
+            log.warn("Invalid rewards request: asOfDate is null");
             throw new ValidationException("asOfDate must not be null");
         }
     }

@@ -1,6 +1,7 @@
 package com.charter.reward.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 
@@ -16,15 +17,14 @@ public class ErrorResponse {
     /**
      * Creates a structured error payload for API responses.
      *
-     * @param status HTTP status code
-     * @param error error category or reason phrase
+     * @param status HTTP status for the error response
      * @param message descriptive message for the caller
      * @param path request path associated with the error
      */
-    public ErrorResponse(int status, String error, String message, String path) {
+    public ErrorResponse(HttpStatus status, String message, String path) {
         this.timestamp = LocalDateTime.now();
-        this.status = status;
-        this.error = error;
+        this.status = status.value();
+        this.error = status.getReasonPhrase();
         this.message = message;
         this.path = path;
     }

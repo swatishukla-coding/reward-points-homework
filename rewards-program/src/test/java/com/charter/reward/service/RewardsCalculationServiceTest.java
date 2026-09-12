@@ -27,7 +27,6 @@ class RewardsCalculationServiceTest {
 
     @Test
     void amountBetweenFiftyAndHundredEarnsOnePointPerDollarOverFifty() {
-        // $75 -> (75 - 50) * 1 = 25
         assertEquals(25, service.calculatePoints(BigDecimal.valueOf(75)));
     }
 
@@ -37,22 +36,26 @@ class RewardsCalculationServiceTest {
     }
 
     @Test
+    void explicitThresholdBoundariesEarnExpectedPoints() {
+        assertEquals(0, service.calculatePoints(BigDecimal.valueOf(50)));
+        assertEquals(1, service.calculatePoints(BigDecimal.valueOf(51)));
+        assertEquals(50, service.calculatePoints(BigDecimal.valueOf(100)));
+        assertEquals(52, service.calculatePoints(BigDecimal.valueOf(101)));
+    }
+
+    @Test
     void classicExampleFromSpec_120DollarPurchase_earns90Points() {
-        // spec: a $120 purchase = 2x$20 + 1x$50 = 90 points
         assertEquals(90, service.calculatePoints(BigDecimal.valueOf(120)));
     }
 
     @Test
     void largePurchaseScalesLinearlyAboveHundred() {
-        // $500 -> (400 * 2) + 50 = 850
         assertEquals(850, service.calculatePoints(BigDecimal.valueOf(500)));
     }
 
     @Test
     void fractionalDollarsRoundDownToWholePoints() {
-        // $100.99 -> over-hundred portion 0.99 * 2 = 1.98, + 50 = 51.98 -> floor 51
         assertEquals(51, service.calculatePoints(new BigDecimal("100.99")));
-        // $99.99 -> 49.99 -> floor 49
         assertEquals(49, service.calculatePoints(new BigDecimal("99.99")));
     }
 
